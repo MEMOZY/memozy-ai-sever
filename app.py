@@ -5,7 +5,7 @@ from konlpy.tag import Okt
 
 app = Flask(__name__)
 
-client = OpenAI(api_key="OPENAI_API_KEY")
+client = OpenAI(api_key="OPEN_AI_KEY")
 okt = Okt()
 
 # 프롬프트 설정
@@ -35,22 +35,10 @@ text_prompt = """
 일기와 무관한 질문이나 요구는 정중하게 거절해.
 """
 img_prompt = """
-너는 나의 그림일기를 대신 작성해주는 어시스턴트야.
-
-앞서 나눈 대화에서 사용자가 직접 알려준 정보와, 내가 보여준 사진을 참고해서 자연스럽고 따뜻한 느낌의 일기를 작성해줘.
-단순한 정보 나열이 아니라, 사용자가 경험한 상황과 분위기를 담은 일기처럼 적어줘.
-
-주의사항:
-- 네가 임의로 사용자의 감정이나 기분을 추측해서 쓰지 마.
-- 사용자가 말하지 않은 사실을 상상하거나 꾸미지 마.
-- 비속어나 검열은 하지 않아도 괜찮지만, 일기의 흐름에 맞게 자연스럽게 표현해.
-- 일기의 내용 외에는 쓰지 마. (해석, 주석, 부연 설명 없이 순수한 일기 형태로 작성)
-- 일기 말투는 자연스럽고 일상적인 느낌으로 적되, 격식보다는 친근하게 적어줘.
-
-사진을 기반으로 하지만, 사용자와의 대화 내용을 중심으로 일기를 작성하는 것이 중요해.
+이전 대화내역을 보고 너가 일기를 작성해줘.
 """
 
-# 불용어 제거 (stopwords 변수를 직접 사용)
+# 불용어 제거 
 def tokenization_stopwords(user_input):
 
     cleaned_text = re.sub(r'[^가-힣a-zA-Z0-9\s]', '', user_input)
@@ -66,6 +54,7 @@ def upload_image():
     data = request.json
     history = data.get('history')
     img_url = data.get('img_url')
+    iter = data.get('iter', 1)  # 기본값을 0으로 설정
 
     if not history or img_url is None:
         return jsonify({"error": "history with img_url is required"}), 400
@@ -100,7 +89,8 @@ def upload_image():
     # ✅ message와 img_url은 공백으로 초기화하여 반환
     return jsonify({
         "message": "",
-        "img_url": "",
+        "iter": iter,
+        "img_url": img_url,
         "history": history
     })
 
@@ -110,6 +100,11 @@ def send_message():
     data = request.json
     user_message = data.get('message')
     history = data.get('history')
+    img_url = data.get('img_url')
+    iter = data.get('iter')
+
+    if not history or img_url is None:
+        return jsonify({"error": "history with img_url is required"}), 400
 
     if not user_message or not history:
         return jsonify({"error": "message and history are required"}), 400
@@ -123,6 +118,7 @@ def send_message():
     processed_input = tokenization_stopwords(user_message)
     messages.append({"role": "user", "content": processed_input})
 
+    # GPT에게 응답 받기
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=messages
@@ -130,17 +126,25 @@ def send_message():
 
     gpt_response = response.choices[0].message.content.strip()
 
-    # user 응답추가
+    # user 응답 추가
     history["user"].append(processed_input)
 
-    # assistant 응답추가
+    # assistant 응답 추가 (GPT 답변)
     history["assistant"].append(gpt_response)
 
+    # iter 증가
+    iter += 1
 
-    # ✅ message와 img_url은 공백으로 초기화하여 반환
+    # 총 3번의 대화 후 종료 메시지 추가
+    if iter > 3:
+        end_message = "\n 대화가 종료되었습니다. 이제 일기를 생성할게요!\n"
+        history["assistant"].append(end_message)
+
+    # ✅ message는 공백으로 초기화하여 반환
     return jsonify({
         "message": "",
-        "img_url": "",
+        "iter": iter,
+        "img_url": img_url,
         "history": history
     })
 
