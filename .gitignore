@@ -1,1 +1,13 @@
-"__pycache__/" 
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Flask instance folder (contains db, secret keys, etc.)
+instance/
+
+# SQLite DB (선택: 원하면 추가)
+*.db
+
+# 기타
+.env
+*.log
