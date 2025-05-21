@@ -2,7 +2,7 @@ import re
 from konlpy.tag import Okt
 from openai import OpenAI
 
-client = OpenAI(api_key="OPEN_AI_KEY")
+client = OpenAI(api_key="OPENAI_API_KEY")
 okt = Okt()
 
 first_comment_prompt = """
@@ -120,8 +120,8 @@ def get_user_conversation_response(history, user_message):
     )
     return response.choices[0].message.content.strip()
 
-def generate_diary(history, img_url):
-    messages = [{"role": "user", "content": img_prompt}]
+def generate_diary(history, img_url,user_prompt):
+    messages = []
     for user_msg, assistant_msg in zip(history.get("user", []), history.get("assistant", [])):
         messages.append({"role": "user", "content": user_msg})
         messages.append({"role": "assistant", "content": assistant_msg})
@@ -129,7 +129,7 @@ def generate_diary(history, img_url):
     messages.append({
         "role": "user",
         "content": [
-            {"type": "text", "text": f"{img_prompt}"},
+            {"type": "text", "text": f"{user_prompt}"},
             {"type": "image_url", "image_url": {"url": img_url, "detail": "high"}}
         ]
     })
