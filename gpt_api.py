@@ -1,8 +1,9 @@
 import re
 from konlpy.tag import Okt
 from openai import OpenAI
+import json
 
-client = OpenAI(api_key="OPEN_AI_KEY")
+client = OpenAI(api_key="OPEN_AI_LKEY")
 okt = Okt()
 
 first_comment_prompt = """
@@ -139,3 +140,48 @@ def generate_diary(history, img_url):
         messages=messages
     )
     return response.choices[0].message.content.strip()
+
+
+def improve_diaries_with_gpt(captions):
+    """
+    일기 목록(captions)을 받아 GPT API로 개선된 일기 리스트를 반환
+    """
+    prompt = f"""
+다음은 사용자가 작성한 {len(captions)}개의 일기야. 이 일기들은 서로 같은 날에 작성된 것으로, 서로의 맥락을 고려해서 각각의 일기를 더 풍부하고 자연스럽게 개선해줘. 
+그리고 개선된 일기 {len(captions)}개를 반드시 JSON 형식의 문자열로 반환해줘. 
+
+예시: 
+[
+"개선된 일기 1",
+"개선된 일기 2",
+"개선된 일기 3"
+]
+""" + "\n".join([f"일기{i+1}: \"{captions[i]}\"" for i in range(len(captions))]) + f"""
+
+각 일기를 전체 맥락을 고려해서 자연스럽게 개선한 후, 다음과 같은 형태로 반환해줘:
+[
+    "개선된 일기1",
+    "개선된 일기2",
+    "개선된 일기3"
+]
+너의 output은 리스트로 파싱할 예정이기 때문에, 꼭 앞선 형식대로만 반환해줘야 해.
+"""
+
+    # GPT API 호출
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
+    )
+    gpt_response = completion.choices[0].message.content.strip()
+
+    # 코드블록 마커 제거 및 JSON 파싱
+    cleaned_output = gpt_response.replace("```json", "").replace("```", "").strip()
+
+    # JSON 파싱
+    improved_diaries = json.loads(cleaned_output)
+    # JSON 형식으로 변환된 일기 리스트 반환
+    if not isinstance(improved_diaries, list):
+        raise ValueError("GPT API의 응답이 JSON 형식이 아닙니다.")
+    return improved_diaries
