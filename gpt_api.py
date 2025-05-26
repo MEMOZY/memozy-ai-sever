@@ -2,6 +2,7 @@ import re
 from konlpy.tag import Okt
 from openai import OpenAI
 import json
+import os
 
 # client = OpenAI(api_key="OPEN_AI_LKEY")
 api_key = os.getenv("OPENAI_API_KEY") # 배포할 땐 이 코드로 배포해야함
