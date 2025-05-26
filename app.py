@@ -110,10 +110,18 @@ def receive_diary():
             "diary": improved_diary_list
         }), 200
 
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"JSON parsing failed: {str(e)}"}), 500
     except Exception as e:
-        return jsonify({"error": f"GPT API error: {str(e)}"}), 500
+        # 일기 개선 시 오류 발생 시 원본 일기를 그대로 반환함으로써 문제는 안생기도록 한다.
+        fallback_diary_list = [
+            {"caption_id": caption_ids[i], "caption": captions[i]}
+            for i in range(len(caption_ids))
+        ]
+
+        return jsonify({
+            "session_id": session_id,
+            "diary": fallback_diary_list,
+            "warning": f"일기 개선시 오류가 발새하여 사용자의 원본 일기를 그대로 반환했습니다. Error: {str(e)}"
+        }), 200  # 상태 코드는 여전히 200 OK
 
 
 if __name__ == '__main__':
