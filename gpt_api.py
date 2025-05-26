@@ -3,7 +3,9 @@ from konlpy.tag import Okt
 from openai import OpenAI
 import json
 
-client = OpenAI(api_key="OPEN_AI_LKEY")
+# client = OpenAI(api_key="OPEN_AI_LKEY")
+api_key = os.getenv("OPENAI_API_KEY") # 배포할 땐 이 코드로 배포해야함
+client = OpenAI(api_key=api_key)
 okt = Okt()
 
 first_comment_prompt = """
