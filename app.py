@@ -14,9 +14,12 @@ def register_user():
 @app.route('/image', methods=['POST']) # 백엔드와 소통, user가 업로드한 이미지를 gpt에게 전달하는 api
 def upload_image():
     data = request.json
+    user_id = data.get('user_id')
     history = data.get('history')
     img_url = data.get('img_url')
 
+    if not user_id or not img_url:
+        return jsonify({"error": "user_id, caption_id, and img_url are required"}), 400
     if not history or img_url is None:
         return jsonify({"error": "history with img_url is required"}), 400
 
@@ -24,38 +27,41 @@ def upload_image():
 
     return jsonify({
         "message": gpt_msg,
-        "iter": iter,
         "img_url": img_url,
+        "user_id": user_id,
     })
 
 @app.route('/message', methods=['POST']) # 백엔드와 소통, user가 업로드한 이미지에 대한 대화수행
 def send_message():
     data = request.json
+    user_id = data.get('user_id')
     user_message = data.get('message')
     history = data.get('history')
     img_url = data.get('img_url')
 
-    # if not user_id or not caption_id or not img_url or not user_message:
-    #     return jsonify({"error": "user_id, caption_id, img_url, and message are required"}), 400
+    if not user_id or not img_url or not user_message:
+        return jsonify({"error": "user_id, caption_id, img_url, and message are required"}), 400
     if not history or img_url is None or not user_message:
         return jsonify({"error": "history, img_url and message are required"}), 400
 
-    gpt_response = gpt_api.get_user_conversation_response(history, user_message)\
+    gpt_response = gpt_api.get_user_conversation_response(history, user_message)
 
     return jsonify({
-        "message": gpt_response,\
+        "message": gpt_response,
         "img_url": img_url,
+        "user_id": user_id,
         "history": history
     })
 
 @app.route('/diary', methods=['POST']) # 백엔드와 소통, user가 업로드한 이미지에 대한 일기 생성
 def generate_diary():
     data = request.json
+    user_id = data.get('user_id')
     img_url = data.get('img_url')
     history = data.get('history')
 
-    # if not user_id or not caption_id or not img_url or not history:
-    #     return jsonify({"error": "user_id, caption_id, img_url and history are required"}), 400
+    if not user_id or not img_url or not history:
+        return jsonify({"error": "user_id, caption_id, img_url and history are required"}), 400
     if not history or img_url is None:
         return jsonify({"error": "history with img_url is required"}), 400
  
@@ -63,9 +69,9 @@ def generate_diary():
     diary_text = gpt_api.generate_diary(history, img_url)
 
     return jsonify({
-        "diary": diary_text
+        "diary": diary_text,
+        "user_id": user_id,
     })
-
 
 
 @app.route('/improve', methods=['POST'])
