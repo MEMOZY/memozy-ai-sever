@@ -77,7 +77,6 @@ def generate_diary():
 @app.route('/improve', methods=['POST'])
 def receive_diary():
     data = request.json
-
     session_id = data.get("session_id")
     if not session_id:
         return jsonify({"error": "session_id is required"}), 400

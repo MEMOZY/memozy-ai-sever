@@ -4,7 +4,7 @@ from openai import OpenAI
 import json
 import os
 
-# client = OpenAI(api_key="OPEN_AI_LKEY")
+# client = OpenAI(api_key="")
 api_key = os.getenv("OPENAI_API_KEY") # 배포할 땐 이 코드로 배포해야함
 client = OpenAI(api_key=api_key)
 okt = Okt()
@@ -150,29 +150,49 @@ def improve_diaries_with_gpt(captions):
     일기 목록(captions)을 받아 GPT API로 개선된 일기 리스트를 반환
     """
     prompt = f"""
-다음은 사용자가 작성한 {len(captions)}개의 일기야. 이 일기들은 서로 같은 날에 작성된 것으로, 서로의 맥락을 고려해서 각각의 일기를 더 풍부하고 자연스럽게 개선해줘. 
-그리고 개선된 일기 {len(captions)}개를 반드시 JSON 형식의 문자열로 반환해줘. 
+역할(Role):
+당신은 사용자의 일기를 맥락있게 개선하는 어시스턴트입니다.
 
-예시: 
-[
-"개선된 일기 1",
-"개선된 일기 2",
-"개선된 일기 3"
-]
-""" + "\n".join([f"일기{i+1}: \"{captions[i]}\"" for i in range(len(captions))]) + f"""
+목표(Goal):
+사용자가 제공한 {len(captions)}개의 일기(같은 날 작성된 것으로 간주됨)를 서로의 맥락을 고려하여, 서로의 맥락을 고려해서 각각의 일기를 더 풍부하고 자연스럽게 개선합니다.
 
-각 일기를 전체 맥락을 고려해서 자연스럽게 개선한 후, 다음과 같은 형태로 반환해줘:
+지시사항(Instructions):
+
+- 제공하지 않은 정보를 임의로 추가하지 마세요.
+- 일기의 내용 외에는 아무것도 추가하지 마세요. (예: 해석, 주석, 부연 설명 등)
+- 출력형식을 반드시 지켜주세요.
+
+출력 형식(Output Format):
+개선된 일기들을 아래 예시처럼 반드시 **JSON 형식의 문자열**로 반환하세요. 이 형식은 리스트로 파싱될 예정입니다.
+
+출력 예시:
+```json
 [
     "개선된 일기1",
     "개선된 일기2",
     "개선된 일기3"
 ]
-너의 output은 리스트로 파싱할 예정이기 때문에, 꼭 앞선 형식대로만 반환해줘야 해.
+```
+
+다음은 사용자가 작성한 {len(captions)}개의 일기입니다:
+""" + "\n".join([f"일기{i+1}: \"{captions[i]}\"" for i in range(len(captions))]) + f"""
+
+위 일기들을 서로의 맥락을 고려해서 각각의 일기를 더 풍부하고 자연스럽게 개선하고 아래 형식 그대로 반환해주세요:
+```json
+
+[
+    "개선된 일기1",
+    "개선된 일기2",
+    "개선된 일기3"
+]
+```
+
 """
+
 
     # GPT API 호출
     completion = client.chat.completions.create(
-        model="gpt-4o",
+        model="ft:gpt-4o-2024-08-06:personal:capstone150img:BMxNfNjK", 
         messages=[
             {"role": "user", "content": prompt}
         ]
@@ -184,7 +204,7 @@ def improve_diaries_with_gpt(captions):
 
     # JSON 파싱
     improved_diaries = json.loads(cleaned_output)
-    # JSON 형식으로 변환된 일기 리스트 반환
-    if not isinstance(improved_diaries, list):
-        raise ValueError("GPT API의 응답이 JSON 형식이 아닙니다.")
+    # # JSON 형식으로 변환된 일기 리스트 반환
+    # if not isinstance(improved_diaries, list):
+    #     raise ValueError("GPT API의 응답이 JSON 형식이 아닙니다.")
     return improved_diaries
