@@ -74,7 +74,7 @@ def generate_diary():
     })
 
 
-@app.route('/improve', methods=['POST'])
+@app.route('/final-diary', methods=['POST'])
 def receive_diary():
     data = request.json
     session_id = data.get("session_id")
