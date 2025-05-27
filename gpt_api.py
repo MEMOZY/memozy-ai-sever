@@ -4,7 +4,7 @@ from openai import OpenAI
 import json
 import os
 
-# client = OpenAI(api_key="OPENAI_API_KEY") 
+# client = OpenAI(api_key="...") 
 api_key = os.getenv("OPENAI_API_KEY") # 배포할 땐 이 코드로 배포해야함
 client = OpenAI(api_key=api_key)
 okt = Okt()
@@ -184,21 +184,22 @@ def improve_diaries_with_gpt(captions):
 - 만약 일기 내용에 불필요한 내용이 있다면, 그 내용을 제거하고 자연스럽게 이어지도록 개선하세요.
 
 출력 형식(Output Format):
-개선된 일기들을 아래 예시처럼 반드시 **JSON 형식의 문자열**로 반환하세요. 이 형식은 리스트로 파싱될 예정입니다.
+개선된 일기들을 아래 예시을 참고하여 반드시 **JSON 형식의 문자열**로 반환하세요. 이 형식은 리스트로 파싱될 예정입니다.
 
 출력 예시:
 ```json
 [
     "개선된 일기1",
     "개선된 일기2",
-    "개선된 일기3"
+    "개선된 일기3",
+    ... 계속
 ]
 ```
 
 다음은 사용자가 작성한 {len(captions)}개의 일기입니다:
 """ + "\n".join([f"일기{i+1}: \"{captions[i]}\"" for i in range(len(captions))]) + f"""
 
-위 일기들을 서로의 맥락을 고려해서 각각의 일기를 더 풍부하고 자연스럽게 개선하고 아래 형식 그대로 반환해주세요:
+위 일기들을 서로의 맥락을 고려해서 각각의 일기를 더 풍부하고 자연스럽게 개선하고 아래 형식을 참고하여 반환해주세요. 반드시 총 {len(captions)}개의 일기를 각각 개선하여, 아래 형식을 참고하여 반환해주세요:
 ```json
 
 [
