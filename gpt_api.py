@@ -1,5 +1,5 @@
 import re
-from konlpy.tag import Okt
+# from konlpy.tag import Okt # stopwords 처리
 from openai import OpenAI
 import json
 import os
@@ -7,7 +7,7 @@ import os
 # client = OpenAI(api_key="...") 
 api_key = os.getenv("OPENAI_API_KEY") # 배포할 땐 이 코드로 배포해야함
 client = OpenAI(api_key=api_key)
-okt = Okt()
+# okt = Okt() # stopwords 처리를 위한 한국어 형태소 분석기
 
 first_comment_prompt = """
 역할(Role):
@@ -112,11 +112,11 @@ img_prompt = """
     예: 즐거운 경험이었다.
 """
 
-def tokenization_stopwords(user_input):
-    cleaned_text = re.sub(r'[^가-힣a-zA-Z0-9\s]', '', user_input)
-    tokens = [word for word, pos in okt.pos(cleaned_text, stem=True)
-              if pos not in ['Josa', 'Punctuation', 'Suffix']]
-    return ' '.join(tokens)
+# def tokenization_stopwords(user_input):
+#     cleaned_text = re.sub(r'[^가-힣a-zA-Z0-9\s]', '', user_input)
+#     tokens = [word for word, pos in okt.pos(cleaned_text, stem=True)
+#               if pos not in ['Josa', 'Punctuation', 'Suffix']]
+#     return ' '.join(tokens)
 
 def get_first_comment(img_url):
     messages = [
@@ -135,8 +135,10 @@ def get_user_conversation_response(history, user_message):
         messages.append({"role": "user", "content": user_msg})
         messages.append({"role": "assistant", "content": assistant_msg})
 
-    processed_input = tokenization_stopwords(user_message)
-    messages.append({"role": "user", "content": processed_input})
+    # processed_input = tokenization_stopwords(user_message)
+    # messages.append({"role": "user", "content": processed_input}) # stopwords 처리 후 메시지 추가하는 코드
+
+    messages.append({"role": "user", "content": user_message}) # stopwords처리 x
 
     response = client.chat.completions.create(
         model="gpt-4o",
