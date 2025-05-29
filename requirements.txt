@@ -2,3 +2,4 @@ Flask==2.2.5
 requests
 openai
 konlpy
+gunicorn
