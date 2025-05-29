@@ -120,7 +120,7 @@ def receive_diary():
         return jsonify({
             "session_id": session_id,
             "diary": fallback_diary_list,
-            "warning": f"일기 개선시 오류가 발새하여 사용자의 원본 일기를 그대로 반환했습니다. Error: {str(e)}"
+            "warning": f"일기 개선시 오류가 발생하여 사용자의 원본 일기를 그대로 반환했습니다. Error: {str(e)}"
         }), 200  # 상태 코드는 여전히 200 OK
 
 

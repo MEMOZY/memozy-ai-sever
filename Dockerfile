@@ -23,5 +23,5 @@ COPY . .
 # Flask 기본 포트
 EXPOSE 5000
 
-# Flask 앱 실행 (gunicorn 사용)
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+# Flask 앱 실행 (gunicorn 사용, 로깅 옵션 추가)
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--log-level", "debug", "--capture-output", "--enable-stdio-inheritance", "app:app"]
