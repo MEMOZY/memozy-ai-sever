@@ -171,7 +171,8 @@ def improve_diaries_with_gpt(captions):
     """
     일기 목록(captions)을 받아 GPT API로 개선된 일기 리스트를 반환
     """
-    prompt = f"""
+    try:
+        prompt = f"""
 역할(Role):
 당신은 사용자의 일기를 맥락있게 개선하는 어시스턴트입니다.
 
@@ -213,24 +214,23 @@ def improve_diaries_with_gpt(captions):
 
 """
 
+        # GPT API 호출
+        completion = client.chat.completions.create(
+                model="ft:gpt-4o-2024-08-06:personal:capstone150img:BMxNfNjK", 
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+        gpt_response = completion.choices[0].message.content.strip()
+        cleaned_output = gpt_response.replace("```json", "").replace("```", "").strip()
 
+        improved_diaries = json.loads(cleaned_output)
 
-    # GPT API 호출
-    completion = client.chat.completions.create(
-        model="ft:gpt-4o-2024-08-06:personal:capstone150img:BMxNfNjK", 
-        # model="gpt-4o",
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-    )
-    gpt_response = completion.choices[0].message.content.strip()
+        if not isinstance(improved_diaries, list):
+            raise ValueError("GPT API 응답이 리스트 형식이 아닙니다.")
 
-    # 코드블록 마커 제거 및 JSON 파싱
-    cleaned_output = gpt_response.replace("```json", "").replace("```", "").strip()
+        return improved_diaries
 
-    # JSON 파싱
-    improved_diaries = json.loads(cleaned_output)
-    # # JSON 형식으로 변환된 일기 리스트 반환
-    # if not isinstance(improved_diaries, list):
-    #     raise ValueError("GPT API의 응답이 JSON 형식이 아닙니다.")
-    return improved_diaries
+    except Exception as e:
+        print(f"⚠️ improve_diaries_with_gpt 내부 오류: {e}")
+        raise e  # 반드시 raise 해야 Flask에서 except 블록으로 넘어감
