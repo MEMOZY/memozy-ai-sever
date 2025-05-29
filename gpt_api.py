@@ -3,6 +3,9 @@ import re
 from openai import OpenAI
 import json
 import os
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 # client = OpenAI(api_key="...") 
 api_key = os.getenv("OPENAI_API_KEY") # 배포할 땐 이 코드로 배포해야함
@@ -232,5 +235,5 @@ def improve_diaries_with_gpt(captions):
         return improved_diaries
 
     except Exception as e:
-        print(f"⚠️ improve_diaries_with_gpt 내부 오류: {e}")
+        logging.warning(f"⚠️ improve_diaries_with_gpt 내부 오류: {e}")
         raise e  # 반드시 raise 해야 Flask에서 except 블록으로 넘어감
