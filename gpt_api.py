@@ -128,26 +128,68 @@ def get_first_comment(img_url):
     ]
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=messages
+        messages=messages,
+        stream=True
     )
-    return response.choices[0].message.content.strip()
+
+    for chunk in response:
+        if chunk.choices:
+            delta = chunk.choices[0].delta
+            if delta and delta.content:
+                logging.info(f"✅ OpenAI streaming: {delta.content}")
+                yield delta.content
 
 def get_user_conversation_response(history, user_message):
     messages = [{"role": "user", "content": text_prompt}]
-    for user_msg, assistant_msg in zip(history.get("user", []), history.get("assistant", [])):
-        messages.append({"role": "user", "content": user_msg})
-        messages.append({"role": "assistant", "content": assistant_msg})
 
-    # processed_input = tokenization_stopwords(user_message)
-    # messages.append({"role": "user", "content": processed_input}) # stopwords 처리 후 메시지 추가하는 코드
+    user_msgs = history.get("user", [])
+    assistant_msgs = [msg.replace("[DONE]", "").strip() for msg in history.get("assistant", [])]
 
-    messages.append({"role": "user", "content": user_message}) # stopwords처리 x
+    max_len = max(len(user_msgs), len(assistant_msgs))
+
+    for i in range(max_len):
+        if i < len(user_msgs):
+            clean_user = user_msgs[i].strip()
+            if clean_user:
+                messages.append({"role": "user", "content": clean_user})
+        if i < len(assistant_msgs):
+            clean_assistant = assistant_msgs[i]
+            if clean_assistant:
+                messages.append({"role": "assistant", "content": clean_assistant})
+
+    messages.append({"role": "user", "content": user_message.strip()})
+
+    logging.debug(f"🛠 SENDING MESSAGES: {json.dumps(messages, ensure_ascii=False)}")
 
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=messages
+        messages=messages,
+        stream=True
     )
-    return response.choices[0].message.content.strip()
+
+    for chunk in response:
+        try:
+            # dict 변환
+            chunk_dict = chunk.model_dump()
+            logging.debug(f"⚙️ RAW chunk: {json.dumps(chunk_dict, ensure_ascii=False)}")  # 전체 raw 찍기
+
+            if 'choices' in chunk_dict:
+                choice = chunk_dict['choices'][0]
+                delta = choice.get('delta')
+
+                if delta:
+                    logging.debug(f"⚙️ delta: {json.dumps(delta, ensure_ascii=False)}")
+
+                content = delta.get('content') if delta else None
+
+                if content is not None and isinstance(content, str):
+                    logging.info(f"✅ OpenAI /message streaming: {content}")
+                    yield content
+                else:
+                    logging.debug("⚠️ Skipping non-string or None content chunk")
+
+        except Exception as e:
+            logging.warning(f"⚠️ Exception while processing chunk: {e}")
 
 def generate_diary(history, img_url):
     messages = [{"role": "user", "content": img_prompt}]

@@ -24,4 +24,4 @@ COPY . .
 EXPOSE 5000
 
 # Flask 앱 실행 (gunicorn 사용, 로깅 옵션 추가)
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app", "--log-level", "debug", "--access-logfile", "-", "--error-logfile", "-"]
+CMD ["gunicorn", "--worker-class", "gevent", "--workers", "1", "--bind", "0.0.0.0:5000", "app:app", "--log-level", "debug", "--access-logfile", "-", "--error-logfile", "-"]

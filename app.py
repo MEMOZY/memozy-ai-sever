@@ -1,8 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 import gpt_api
 import json
+import logging
 
 app = Flask(__name__)
+
+logging.basicConfig(level=logging.INFO)
 
 @app.route('/user', methods=['POST']) # 백엔드와 소통, user 등록 
 def register_user():
@@ -10,48 +13,68 @@ def register_user():
     user_id = data.get('user_id')
     return jsonify({"message": f"user_id '{user_id}' 회원 등록 완료!"}), 200
 
-
-@app.route('/image', methods=['POST']) # 백엔드와 소통, user가 업로드한 이미지를 gpt에게 전달하는 api
-def upload_image():
+@app.route('/image', methods=['POST'])
+def upload_image_stream():
     data = request.json
-    session_id = data.get('session_id')
-    history = data.get('history')
     img_url = data.get('img_url')
+    if not img_url:
+        return jsonify({"error": "img_url is required"}), 400
 
-    if not session_id or not img_url:
-        return jsonify({"error": "session_id, and img_url are required"}), 400
-    if not history or img_url is None:
-        return jsonify({"error": "history with img_url is required"}), 400
+    def event_stream():
+        try:
+            for partial in gpt_api.get_first_comment(img_url):
+                logging.info(f"✅ /image yielding chunk: {partial}")
+                yield f"data: {partial}\n\n"
+            logging.info("✅ /image sending DONE")
+            yield "event: done\ndata: [DONE]\n\n"
+        except Exception as e:
+            logging.error(f"❌ /image error: {str(e)}")
+            yield f"event: error\ndata: {str(e)}\n\n"
 
-    gpt_msg = gpt_api.get_first_comment(img_url)
+    return Response(stream_with_context(event_stream()), mimetype="text/event-stream")
 
-    return jsonify({
-        "message": gpt_msg,
-        "img_url": img_url,
-        "session_id": session_id,
-    })
-
-@app.route('/message', methods=['POST']) # 백엔드와 소통, user가 업로드한 이미지에 대한 대화수행
-def send_message():
+@app.route('/message', methods=['POST'])  # ✅ 스트리밍
+def send_message_stream():
     data = request.json
-    session_id = data.get('session_id')
+    history = data.get('history')
     user_message = data.get('message')
-    history = data.get('history')
-    img_url = data.get('img_url')
+    logging.info(f"✅ FLASK RECEIVED history: {history}")
+    logging.info(f"✅ FLASK RECEIVED user_message: {user_message}")
+    
+    if not history or not user_message:
+        return jsonify({"error": "history and message are required"}), 400
 
-    if not session_id or not img_url or not user_message:
-        return jsonify({"error": "session_id, caption_id, img_url, and message are required"}), 400
-    if not history or img_url is None or not user_message:
-        return jsonify({"error": "history, img_url and message are required"}), 400
+    def event_stream():
+        try:
+            got_content = False  # 실질 content를 받았는지 플래그
 
-    gpt_response = gpt_api.get_user_conversation_response(history, user_message)
+            for chunk in gpt_api.get_user_conversation_response(history, user_message):
+                content = chunk.strip()
+                if content:
+                    logging.info(f"✅ FLASK SENDING: {content}")
+                    yield f"data: {content}\n\n"
+                    got_content = True
 
-    return jsonify({
-        "message": gpt_response,
-        "img_url": img_url,
-        "session_id": session_id,
-        "history": history
-    })
+            if not got_content:
+                logging.warning("⚠️ FLASK: no meaningful content, sending fallback")
+                yield f"data: 죄송합니다, 답변을 생성하지 못했습니다.\n\n"
+
+            logging.info("✅ FLASK DONE SENDING")
+            yield "event: done\ndata: [DONE]\n\n"
+
+            if not got_content:
+                logging.warning("⚠️ FLASK: no meaningful content, sending fallback")
+                yield f"data: 죄송합니다, 답변을 생성하지 못했습니다.\n\n"
+
+            logging.info("✅ FLASK DONE SENDING")
+            yield "event: done\ndata: [DONE]\n\n"
+
+        except Exception as e:
+            logging.error(f"❌ /message error: {str(e)}")
+            yield f"event: error\ndata: {str(e)}\n\n"
+
+    logging.info("✅ FLASK STREAMING STARTED")  # 🔥 요청 진입 로그
+    return Response(stream_with_context(event_stream()), mimetype="text/event-stream")
 
 @app.route('/diary', methods=['POST']) # 백엔드와 소통, user가 업로드한 이미지에 대한 일기 생성
 def generate_diary():
