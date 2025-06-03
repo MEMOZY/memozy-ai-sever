@@ -62,13 +62,6 @@ def send_message_stream():
             logging.info("✅ FLASK DONE SENDING")
             yield "event: done\ndata: [DONE]\n\n"
 
-            if not got_content:
-                logging.warning("⚠️ FLASK: no meaningful content, sending fallback")
-                yield f"data: 죄송합니다, 답변을 생성하지 못했습니다.\n\n"
-
-            logging.info("✅ FLASK DONE SENDING")
-            yield "event: done\ndata: [DONE]\n\n"
-
         except Exception as e:
             logging.error(f"❌ /message error: {str(e)}")
             yield f"event: error\ndata: {str(e)}\n\n"
