@@ -44,10 +44,26 @@ def send_message_stream():
     if not history or not user_message:
         return jsonify({"error": "history and message are required"}), 400
 
+    # ✅ 먼저 GPT로 user_message가 '일기 관련 내용인지' 확인 아니라면 거절
+    try:
+        is_diary_related = gpt_api.check_diary_related(user_message)
+        logging.info(f"✅ diary relevance: {is_diary_related}")
+    except Exception as e:
+        logging.error(f"❌ GPT relevance check error: {str(e)}")
+        return jsonify({"error": "GPT relevance check failed"}), 500
+
     def event_stream():
         try:
-            got_content = False  # 실질 content를 받았는지 플래그
+            if not is_diary_related:
+                # 🔴 일기 관련 내용이 아닌 경우: 사용자에게 경고 문구를 한 글자씩 스트리밍
+                warning = "죄송합니다. 일기 작성과 관련된 내용만 도와드릴 수 있어요. 일기와 관련된 내용을 입력해 주세요."
+                logging.info("⚠️ Non-diary message. Sending warning via stream (char by char).")
+                for char in warning:
+                    yield f"data: {char}\n\n"
+                yield "event: done\ndata: [DONE]\n\n"
+                return
 
+            got_content = False
             for chunk in gpt_api.get_user_conversation_response(history, user_message):
                 content = chunk.strip()
                 if content:
@@ -57,7 +73,9 @@ def send_message_stream():
 
             if not got_content:
                 logging.warning("⚠️ FLASK: no meaningful content, sending fallback")
-                yield f"data: 죄송합니다, 답변을 생성하지 못했습니다.\n\n"
+                fallback = "죄송합니다, 답변을 생성하지 못했습니다."
+                for char in fallback:
+                    yield f"data: {char}\n\n"
 
             logging.info("✅ FLASK DONE SENDING")
             yield "event: done\ndata: [DONE]\n\n"
@@ -66,8 +84,10 @@ def send_message_stream():
             logging.error(f"❌ /message error: {str(e)}")
             yield f"event: error\ndata: {str(e)}\n\n"
 
-    logging.info("✅ FLASK STREAMING STARTED")  # 🔥 요청 진입 로그
+    logging.info("✅ FLASK STREAMING STARTED")
     return Response(stream_with_context(event_stream()), mimetype="text/event-stream")
+
+
 
 @app.route('/diary', methods=['POST']) # 백엔드와 소통, user가 업로드한 이미지에 대한 일기 생성
 def generate_diary():
@@ -75,18 +95,32 @@ def generate_diary():
     session_id = data.get('session_id')
     img_url = data.get('img_url')
     history = data.get('history')
+    past_diary = data.get('past_diary', [])  # 과거 일기 리스트. 없으면 빈 리스트로 처리
 
     if not session_id or not img_url or not history:
         return jsonify({"error": "session_id, img_url and history are required"}), 400
     if not history or img_url is None:
         return jsonify({"error": "history with img_url is required"}), 400
  
-    # ✅GPT API 호출
-    diary_text = gpt_api.generate_diary(history, img_url)
+    # ✅ 과거 일기가 존재할 경우: 프롬프트로 구성
+    past_diary_prompt = ""
+    if past_diary and isinstance(past_diary, list) and any(past_diary):
+        past_diary_prompt = "\n\n".join(
+            f"- {diary}" for diary in past_diary if diary.strip()
+        )
+        past_diary_prompt = (
+            "\n다음은 사용자가 과거에 작성한 일기들 입니다. 다음 일기들의 문체, 형식, 말투들을 참고하여 작성하여 주세요. :\n\n"
+            + past_diary_prompt
+        )
+    else:
+        past_diary_prompt =None
+
+    # ✅ GPT API 호출 (프롬프트 추가된 버전으로)
+    diary_text= gpt_api.generate_diary(history=history, img_url=img_url, past_diary_prompt=past_diary_prompt)
 
     return jsonify({
         "diary": diary_text,
-        "session_id": session_id,
+        "session_id": session_id
     })
 
 
