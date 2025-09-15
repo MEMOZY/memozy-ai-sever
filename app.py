@@ -49,7 +49,7 @@ def send_message_stream():
             got_content = False  # 실질 content를 받았는지 플래그
 
             for chunk in gpt_api.get_user_conversation_response(history, user_message):
-                content = chunk.strip()
+                content = chunk
                 if content:
                     logging.info(f"✅ FLASK SENDING: {content}")
                     yield f"data: {content}\n\n"
