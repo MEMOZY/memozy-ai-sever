@@ -43,10 +43,29 @@ def send_message_stream():
     
     if not history or not user_message:
         return jsonify({"error": "history and message are required"}), 400
+    
+    # ✅ 먼저 GPT로 user_message가 '일기 관련 내용인지' 확인 아니라면 거절
+    try:
+        is_diary_related = gpt_api.check_diary_related(user_message)
+        logging.info(f"✅ diary relevance: {is_diary_related}")
+    except Exception as e:
+        logging.error(f"❌ GPT relevance check error: {str(e)}")
+        return jsonify({"error": "GPT relevance check failed"}), 500
+
 
     def event_stream():
         try:
-            got_content = False  # 실질 content를 받았는지 플래그
+            if not is_diary_related:
+                # 🔴 일기 관련 내용이 아닌 경우: 사용자에게 경고 문구를 한 글자씩 스트리밍
+                warning = "죄송합니다. 일기 작성과 관련된 내용만 도와드릴 수 있어요. 일기와 관련된 내용을 입력해 주세요."
+   
+                logging.info("⚠️ Non-diary message. Sending warning via stream (char by char).")
+                for char in warning:
+                    yield f"data: {char}\n\n"
+                yield "event: done\ndata: [DONE]\n\n"
+                return
+
+            got_content = False
 
             for chunk in gpt_api.get_user_conversation_response(history, user_message):
                 content = chunk
@@ -57,7 +76,9 @@ def send_message_stream():
 
             if not got_content:
                 logging.warning("⚠️ FLASK: no meaningful content, sending fallback")
-                yield f"data: 죄송합니다, 답변을 생성하지 못했습니다.\n\n"
+                fallback = "죄송합니다, 답변을 생성하지 못했습니다."
+                for char in fallback:
+                    yield f"data: {char}\n\n"
 
             logging.info("✅ FLASK DONE SENDING")
             yield "event: done\ndata: [DONE]\n\n"
