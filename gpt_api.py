@@ -71,12 +71,13 @@ text_prompt = """
 사용자가 질문에 압박을 느끼지 않도록 한번에 너무 많은 질문을 한번에 하지마.
 """
 
-img_prompt = """
+diary_prompt = """
 역할(Role):
 당신은 사용자의 사진일기를 대신 작성하는 어시스턴트입니다.
 
 목표(Goal):
 사용자가 제공한 사진과 대화에서 수집한 정보를 바탕으로 자연스럽고 일상적인 느낌의 일기를 작성합니다.
+만약 사용자의 이전 일기가 예시로 제공된다면 해당 일기의  스타일, 말투, 형식 문체를 참고하여 작성합니다.
 
 지시사항(Instructions):
 
@@ -217,7 +218,16 @@ def check_diary_related(user_message: str) -> bool:
     result = completion.choices[0].message.content.strip()
     return result.startswith("예")
 
-def generate_diary(history, img_url):
+def generate_diary(history, img_url, past_diary_prompt=None):
+        # ✅ 과거 일기 스타일 참고 문구 포함
+    if past_diary_prompt:
+        img_prompt = diary_prompt + past_diary_prompt
+        # print(f"✅ Past diary prompt included. Prompt : \n\n {img_prompt}")######## 디버깅용 프롬포트 확인 테스트
+    else:
+        img_prompt = diary_prompt
+        # print(f"✅ Past diary prompt not included. Prompt : \n\n {img_prompt}")
+
+
     messages = [{"role": "user", "content": img_prompt}]
     for user_msg, assistant_msg in zip(history.get("user", []), history.get("assistant", [])):
         messages.append({"role": "user", "content": user_msg})

@@ -93,17 +93,32 @@ def send_message_stream():
 @app.route('/diary', methods=['POST']) # 백엔드와 소통, user가 업로드한 이미지에 대한 일기 생성
 def generate_diary():
     data = request.json
+    # print(data)###### 디버깅용, data가 잘 넘어오는지 확인
     session_id = data.get('session_id')
     img_url = data.get('img_url')
     history = data.get('history')
+    past_diary = data.get('past_diary', [])  # 과거 일기 리스트. 없으면 빈 리스트로 처리
 
     if not session_id or not img_url or not history:
         return jsonify({"error": "session_id, img_url and history are required"}), 400
     if not history or img_url is None:
         return jsonify({"error": "history with img_url is required"}), 400
  
-    # ✅GPT API 호출
-    diary_text = gpt_api.generate_diary(history, img_url)
+   # ✅ 과거 일기가 존재할 경우: 프롬프트로 구성
+    past_diary_prompt = ""
+    if past_diary and isinstance(past_diary, list) and any(past_diary):
+        past_diary_prompt = "\n\n".join(
+            f"- {diary}" for diary in past_diary if diary.strip()
+        )
+        past_diary_prompt = (
+            "\n다음은 사용자가 과거에 작성한 일기들 입니다. 다음 일기들의 스타일, 말투, 형식 문체를 참고하여 작성하여 주세요. :\n\n"
+            + past_diary_prompt
+        )
+    else:
+        past_diary_prompt =None
+
+    # ✅ GPT API 호출 (프롬프트 추가된 버전으로)
+    diary_text= gpt_api.generate_diary(history=history, img_url=img_url, past_diary_prompt=past_diary_prompt)
 
     return jsonify({
         "diary": diary_text,

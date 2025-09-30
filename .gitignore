@@ -11,3 +11,4 @@ instance/
 # 기타
 .env
 *.log
+visual.py
